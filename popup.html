@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Ultimate Workdesk</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="mark">UW</div>
+      <div>
+        <h1>The Ultimate Workdesk</h1>
+        <p class="subtitle">Your professional command center</p>
+      </div>
+    </header>
+
+    <section class="welcome">
+      <span class="eyebrow">WORKSPACE · V0.1</span>
+      <h2>Make every workday<br><span>more intentional.</span></h2>
+      <p>Keep your next action clear and your momentum moving.</p>
+    </section>
+
+    <section class="card">
+      <label for="task">Your focus for today</label>
+      <textarea id="task" placeholder="Write your most important task…"></textarea>
+      <button id="save">Save focus</button>
+      <p id="status" aria-live="polite"></p>
+    </section>
+
+    <footer>Simple tools. Clear focus. Better work.</footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
