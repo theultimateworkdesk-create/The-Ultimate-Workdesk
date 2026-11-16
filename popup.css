@@ -27,7 +27,7 @@ textarea {
 textarea:focus { border-color:#818cf8; }
 button {
   width:100%; margin-top:12px; border:0; border-radius:10px; padding:11px;
-  background:#7777f7; color:white; font-weight:700; cursor:pointer;
+  background:#6C63FF; color:white; font-weight:700; cursor:pointer;
 }
 button:hover { background:#6868e8; }
 #status { min-height:14px; color:#8ee6bd; font-size:11px; margin:9px 0 0; }
