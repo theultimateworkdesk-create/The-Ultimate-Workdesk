@@ -1,36 +1,40 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Ultimate Workdesk</title>
-  <link rel="stylesheet" href="popup.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Ultimate Workdesk</title>
+<link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <main class="app">
-    <header>
-      <div class="mark">UW</div>
-      <div>
-        <h1>The Ultimate Workdesk</h1>
-        <p class="subtitle">Your professional command center</p>
-      </div>
-    </header>
-
-    <section class="welcome">
-      <span class="eyebrow">WORKSPACE · V0.1</span>
-      <h2>Make every workday<br><span>more intentional.</span></h2>
-      <p>Keep your next action clear and your momentum moving.</p>
-    </section>
-
-    <section class="card">
-      <label for="task">Your focus for today</label>
-      <textarea id="task" placeholder="Write your most important task…"></textarea>
-      <button id="save">Save focus</button>
-      <p id="status" aria-live="polite"></p>
-    </section>
-
-    <footer>Simple tools. Clear focus. Better work.</footer>
-  </main>
-  <script src="popup.js"></script>
+<main class="app">
+<header class="top">
+  <div><p class="eyebrow">YOUR PERSONAL WORKSPACE</p><h1>The Ultimate<br><span>Workdesk.</span></h1></div>
+  <div class="version">v0.2.0</div>
+</header>
+<section class="summary">
+  <p class="section-label">TODAY'S PROGRESS</p>
+  <div class="progress-line"><strong id="progressText">0 of 0 completed</strong><span id="progressPercent">0%</span></div>
+  <div class="progress-track"><div id="progressBar" class="progress-fill"></div></div>
+</section>
+<section class="add-section">
+  <p class="section-label">ADD A TASK</p>
+  <form id="taskForm">
+    <input id="taskInput" type="text" maxlength="120" placeholder="What do you need to do?" autocomplete="off" required>
+    <div class="form-row">
+      <select id="prioritySelect" aria-label="Task priority">
+        <option value="medium">Medium priority</option><option value="high">High priority</option><option value="low">Low priority</option>
+      </select>
+      <button type="submit" id="addButton">Add task <span>+</span></button>
+    </div>
+  </form>
+</section>
+<section class="tasks-section">
+  <div class="tasks-heading"><p class="section-label">YOUR TASKS</p><span id="taskCount" class="count">0 tasks</span></div>
+  <div id="taskList" class="task-list"></div>
+</section>
+<footer>Small steps. Consistent progress.</footer>
+</main>
+<script src="popup.js"></script>
 </body>
 </html>

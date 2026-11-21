@@ -1,16 +1,19 @@
-# The Ultimate Workdesk — v0.1
+# The Ultimate Workdesk — v0.2.0
 
-A starter Chrome Extension (Manifest V3).
+A simple Chrome extension workspace for daily tasks.
 
-## Included
-- Clean popup interface
-- Daily focus note
-- Saves focus locally using Chrome Storage
+## Features
+- Add and delete tasks
+- Set High, Medium, or Low priority
+- Mark tasks as completed
+- View completion progress
+- Save tasks locally with Chrome storage
 
-## Files
-- `manifest.json`
-- `popup.html`
-- `popup.css`
-- `popup.js`
+## Install on desktop Chrome
+1. Download and extract this ZIP.
+2. Open `chrome://extensions`.
+3. Turn on **Developer mode**.
+4. Select **Load unpacked**.
+5. Choose the extracted folder containing `manifest.json`.
 
-This is a starter MVP package. More modules can be added in later versions.
+Standard Google Chrome on Android does not support Chrome extensions. This package is intended for desktop Chromium-based browsers.
