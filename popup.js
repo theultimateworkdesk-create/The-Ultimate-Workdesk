@@ -1,53 +1,174 @@
+'use strict';
+
 const $ = id => document.getElementById(id);
-const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}${Math.random().toString(36).slice(2,8)}`;
-let db = {tasks:[], plans:[], clients:[], leads:[], jobs:[]};
-const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-async function save(){ await chrome.storage.local.set({workdesk:db}); updateStats(); }
-function item(title, detail, id, type, check=false, done=false){
-  return `<article class="item ${done?'done':''}">${check?`<input type="checkbox" data-check="${esc(id)}" aria-label="Mark ${esc(title)} complete" ${done?'checked':''}>`:''}<div class="item-copy"><b>${esc(title)}</b><small>${esc(detail || '')}</small></div><button class="delete" data-del="${type}:${esc(id)}" aria-label="Delete ${esc(title)}">×</button></article>`;
+const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+const STORAGE_KEY = 'workdesk';
+const COLLECTIONS = ['tasks', 'plans', 'clients', 'leads', 'jobs'];
+let db = Object.fromEntries(COLLECTIONS.map(key => [key, []]));
+let saveTimer;
+
+const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const byDateTime = (a, b) => `${a.date || '9999-12-31'}T${a.time || '23:59'}`.localeCompare(`${b.date || '9999-12-31'}T${b.time || '23:59'}`);
+
+function announce(message, isError = false) {
+  const status = $('appStatus');
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle('error', isError);
+  status.hidden = !message;
+  clearTimeout(saveTimer);
+  if (message && !isError) saveTimer = setTimeout(() => { status.hidden = true; }, 3500);
 }
-function updateStats(){
-  const done=db.tasks.filter(t=>t.done).length, total=db.tasks.length, percent=total?Math.round(done/total*100):0;
-  $('openCount').textContent=total-done; $('doneCount').textContent=done; $('clientCount').textContent=db.clients.length; $('leadCount').textContent=db.leads.length;
-  $('progressText').textContent=`${percent}%`; $('progressBar').style.width=`${percent}%`;
+
+async function save() {
+  try {
+    await chrome.storage.local.set({ [STORAGE_KEY]: db });
+    updateStats();
+    announce('Saved on this device.');
+    return true;
+  } catch (error) {
+    console.error('Workdesk save failed:', error);
+    announce('Could not save. Check extension storage and try again.', true);
+    return false;
+  }
 }
-function render(){
-  $('taskList').innerHTML=db.tasks.filter(t=>{const f=$('taskFilter').value;return f==='all'||(f==='open'&&!t.done)||(f==='done'&&t.done)}).map(t=>item(t.name,`${t.priority} priority${t.date?' · Due '+t.date:''}`,t.id,'tasks',true,t.done)).join('') || '<p class="empty">No tasks in this view yet.</p>';
-  $('planList').innerHTML=db.plans.slice().sort((a,b)=>`${a.date||'9999'}${a.time||''}`.localeCompare(`${b.date||'9999'}${b.time||''}`)).map(x=>item(x.name,[x.date,x.time].filter(Boolean).join(' · '),x.id,'plans')).join('') || '<p class="empty">No planned activities yet.</p>';
-  $('clientList').innerHTML=db.clients.map(x=>item(x.name,[x.email,x.note].filter(Boolean).join(' · '),x.id,'clients')).join('') || '<p class="empty">No clients saved yet.</p>';
-  $('leadList').innerHTML=db.leads.map(x=>item(x.name,[x.source,x.contact].filter(Boolean).join(' · '),x.id,'leads')).join('') || '<p class="empty">No leads saved yet.</p>';
-  $('jobList').innerHTML=db.jobs.map(x=>item(x.name,[x.source,x.url].filter(Boolean).join(' · '),x.id,'jobs')).join('') || '<p class="empty">No opportunities saved yet.</p>';
-  const upcoming=db.tasks.filter(t=>!t.done).slice(0,4);
-  $('upcomingList').innerHTML=upcoming.map(t=>`<div class="compact-item"><span>${esc(t.name)}</span><span>${esc(t.date||t.priority)}</span></div>`).join('') || '<p class="empty">No open tasks. Enjoy the breathing room.</p>';
+
+function updateStats() {
+  const done = db.tasks.filter(task => task.done).length;
+  const total = db.tasks.length;
+  const percent = total ? Math.round((done / total) * 100) : 0;
+  $('openCount').textContent = String(total - done);
+  $('doneCount').textContent = String(done);
+  $('clientCount').textContent = String(db.clients.length);
+  $('leadCount').textContent = String(db.leads.length);
+  $('progressText').textContent = `${percent}%`;
+  $('progressBar').style.width = `${percent}%`;
+  $('progressBar').setAttribute('aria-valuenow', String(percent));
+}
+
+function item(title, detail, id, type, check = false, done = false) {
+  const safeId = esc(id);
+  return `<article class="item ${done ? 'done' : ''}">${check ? `<input type="checkbox" data-check="${safeId}" aria-label="Mark ${esc(title)} complete" ${done ? 'checked' : ''}>` : ''}<div class="item-copy"><b>${esc(title)}</b><small>${esc(detail || '')}</small></div><button class="delete" data-del-type="${type}" data-del-id="${safeId}" aria-label="Delete ${esc(title)}">×</button></article>`;
+}
+
+function render() {
+  const filter = $('taskFilter').value;
+  const visibleTasks = db.tasks.filter(task => filter === 'all' || (filter === 'open' && !task.done) || (filter === 'done' && task.done));
+  $('taskList').innerHTML = visibleTasks.map(task => item(task.name, `${task.priority || 'Medium'} priority${task.date ? ` · Due ${task.date}` : ''}`, task.id, 'tasks', true, task.done)).join('') || '<p class="empty">No tasks in this view yet.</p>';
+  $('planList').innerHTML = [...db.plans].sort(byDateTime).map(plan => item(plan.name, [plan.date, plan.time].filter(Boolean).join(' · '), plan.id, 'plans')).join('') || '<p class="empty">No planned activities yet.</p>';
+  $('clientList').innerHTML = db.clients.map(client => item(client.name, [client.email, client.note].filter(Boolean).join(' · '), client.id, 'clients')).join('') || '<p class="empty">No clients saved yet.</p>';
+  $('leadList').innerHTML = db.leads.map(lead => item(lead.name, [lead.source, lead.contact].filter(Boolean).join(' · '), lead.id, 'leads')).join('') || '<p class="empty">No leads saved yet.</p>';
+  $('jobList').innerHTML = db.jobs.map(job => item(job.name, [job.source, job.url].filter(Boolean).join(' · '), job.id, 'jobs')).join('') || '<p class="empty">No opportunities saved yet.</p>';
+
+  const upcoming = db.tasks.filter(task => !task.done).sort((a, b) => {
+    const aDate = a.date || '9999-12-31';
+    const bDate = b.date || '9999-12-31';
+    return aDate.localeCompare(bDate) || String(a.name).localeCompare(String(b.name));
+  }).slice(0, 4);
+  $('upcomingList').innerHTML = upcoming.map(task => `<div class="compact-item"><span>${esc(task.name)}</span><span>${esc(task.date || task.priority || 'Open')}</span></div>`).join('') || '<p class="empty">No open tasks. Enjoy the breathing room.</p>';
   updateStats();
 }
-function bindAdd(formId,key,make){
-  $(formId).addEventListener('submit',async e=>{e.preventDefault();const record=make();if(!record.name)return;db[key].unshift(record);await save();render();e.target.reset();});
+
+function bindAdd(formId, key, make) {
+  $(formId).addEventListener('submit', async event => {
+    event.preventDefault();
+    const record = make();
+    if (!record.name) {
+      announce('Please enter a name before saving.', true);
+      return;
+    }
+    db[key].unshift(record);
+    const saved = await save();
+    render();
+    if (saved) event.target.reset();
+  });
 }
-bindAdd('taskForm','tasks',()=>({id:uid(),name:$('taskName').value.trim(),priority:$('priority').value,date:$('dueDate').value,done:false}));
-bindAdd('planForm','plans',()=>({id:uid(),name:$('planName').value.trim(),date:$('planDate').value,time:$('planTime').value}));
-bindAdd('clientForm','clients',()=>({id:uid(),name:$('clientName').value.trim(),email:$('clientEmail').value.trim(),note:$('clientNote').value.trim()}));
-bindAdd('leadForm','leads',()=>({id:uid(),name:$('leadName').value.trim(),source:$('leadSource').value.trim(),contact:$('leadContact').value.trim()}));
-bindAdd('jobForm','jobs',()=>({id:uid(),name:$('jobName').value.trim(),source:$('jobSource').value.trim(),url:$('jobUrl').value.trim()}));
-document.addEventListener('change',async e=>{if(e.target.matches('[data-check]')){const task=db.tasks.find(t=>t.id===e.target.dataset.check);if(task){task.done=e.target.checked;await save();render();}}});
-document.addEventListener('click',async e=>{
-  const del=e.target.closest('[data-del]'); if(del){const [key,id]=del.dataset.del.split(':');if(db[key]){db[key]=db[key].filter(x=>x.id!==id);await save();render();}return;}
-  const go=e.target.closest('[data-go]');if(go)activate(go.dataset.go);
-});
-function activate(view){document.querySelectorAll('.tab,.view').forEach(el=>el.classList.remove('active'));document.querySelector(`.tab[data-view="${view}"]`)?.classList.add('active');$(view)?.classList.add('active');}
-document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>activate(btn.dataset.view)));
-$('taskFilter').addEventListener('change',render);
-$('makeProposal').addEventListener('click',()=>{
-  const service=$('pService').value.trim(), need=$('pNeed').value.trim();
-  if(!service||!need){alert('Please enter the service and the client’s need.');return;}
-  const client=$('pClient').value.trim()||'there', proof=$('pProof').value.trim();
-  $('proposalResult').value=`Hi ${client},\n\nI’d be glad to support you with ${service}.\n\nFrom your description, your main need is: ${need}.\n\nMy approach would be to confirm your priorities, agree on clear deliverables and timelines, and keep you updated throughout the work.${proof?`\n\nRelevant experience: ${proof}`:''}\n\nWould you be open to a brief conversation so I can understand the outcome you’re aiming for?\n\nBest regards`;
-  $('proposalResult').hidden=false;$('copyProposal').hidden=false;$('copyStatus').textContent='';
-});
-$('copyProposal').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('proposalResult').value);$('copyStatus').textContent='Copied.';}catch{ $('proposalResult').select();$('copyStatus').textContent='Select and copy the draft.'; }});
-(async()=>{
-  try{const stored=await chrome.storage.local.get('workdesk');if(stored.workdesk){db={...db,...stored.workdesk};for(const key of Object.keys(db))if(!Array.isArray(db[key]))db[key]=[];}}
-  catch(error){console.error('Could not load local workspace data',error);}
-  $('todayLabel').textContent=new Intl.DateTimeFormat(undefined,{weekday:'short',month:'short',day:'numeric'}).format(new Date());
+
+bindAdd('taskForm', 'tasks', () => ({ id: uid(), name: $('taskName').value.trim(), priority: $('priority').value, date: $('dueDate').value, done: false }));
+bindAdd('planForm', 'plans', () => ({ id: uid(), name: $('planName').value.trim(), date: $('planDate').value, time: $('planTime').value }));
+bindAdd('clientForm', 'clients', () => ({ id: uid(), name: $('clientName').value.trim(), email: $('clientEmail').value.trim(), note: $('clientNote').value.trim() }));
+bindAdd('leadForm', 'leads', () => ({ id: uid(), name: $('leadName').value.trim(), source: $('leadSource').value.trim(), contact: $('leadContact').value.trim() }));
+bindAdd('jobForm', 'jobs', () => ({ id: uid(), name: $('jobName').value.trim(), source: $('jobSource').value.trim(), url: $('jobUrl').value.trim() }));
+
+document.addEventListener('change', async event => {
+  if (!event.target.matches('[data-check]')) return;
+  const task = db.tasks.find(entry => entry.id === event.target.dataset.check);
+  if (!task) return;
+  const previous = task.done;
+  task.done = event.target.checked;
+  if (!await save()) task.done = previous;
   render();
-})();
+});
+
+document.addEventListener('click', async event => {
+  const del = event.target.closest('[data-del-type][data-del-id]');
+  if (del) {
+    const key = del.dataset.delType;
+    if (!COLLECTIONS.includes(key)) return;
+    const oldRecords = db[key];
+    db[key] = oldRecords.filter(entry => entry.id !== del.dataset.delId);
+    if (!await save()) db[key] = oldRecords;
+    render();
+    return;
+  }
+  const go = event.target.closest('[data-go]');
+  if (go) activate(go.dataset.go);
+});
+
+function activate(view) {
+  if (!$(view)) return;
+  document.querySelectorAll('.tab, .view').forEach(element => element.classList.remove('active'));
+  document.querySelector(`.tab[data-view="${view}"]`)?.classList.add('active');
+  $(view).classList.add('active');
+}
+
+document.querySelectorAll('.tab').forEach(button => button.addEventListener('click', () => activate(button.dataset.view)));
+$('taskFilter').addEventListener('change', render);
+
+$('makeProposal').addEventListener('click', () => {
+  const service = $('pService').value.trim();
+  const need = $('pNeed').value.trim();
+  if (!service || !need) {
+    announce('Enter the service and the client’s need first.', true);
+    (!service ? $('pService') : $('pNeed')).focus();
+    return;
+  }
+  const client = $('pClient').value.trim() || 'there';
+  const proof = $('pProof').value.trim();
+  $('proposalResult').value = `Hi ${client},\n\nI’d be glad to support you with ${service}.\n\nFrom your description, your main need is: ${need}.\n\nMy approach would be to confirm your priorities, agree on clear deliverables and timelines, and keep you updated throughout the work.${proof ? `\n\nRelevant experience: ${proof}` : ''}\n\nWould you be open to a brief conversation so I can understand the outcome you’re aiming for?\n\nBest regards`;
+  $('proposalResult').hidden = false;
+  $('copyProposal').hidden = false;
+  $('copyStatus').textContent = '';
+  announce('Proposal draft created. Review it before sending.');
+});
+
+$('copyProposal').addEventListener('click', async () => {
+  const field = $('proposalResult');
+  try {
+    await navigator.clipboard.writeText(field.value);
+    $('copyStatus').textContent = 'Copied.';
+  } catch (error) {
+    field.focus();
+    field.select();
+    $('copyStatus').textContent = 'Draft selected. Copy it using your device menu.';
+  }
+});
+
+async function loadWorkspace() {
+  try {
+    const stored = await chrome.storage.local.get(STORAGE_KEY);
+    if (stored && stored[STORAGE_KEY] && typeof stored[STORAGE_KEY] === 'object') {
+      for (const key of COLLECTIONS) {
+        const value = stored[STORAGE_KEY][key];
+        db[key] = Array.isArray(value) ? value.filter(record => record && typeof record === 'object' && record.id && typeof record.name === 'string') : [];
+      }
+    }
+  } catch (error) {
+    console.error('Could not load local workspace data:', error);
+    announce('Could not load saved data. Check extension storage permissions.', true);
+  }
+  $('todayLabel').textContent = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date());
+  render();
+}
+
+loadWorkspace();

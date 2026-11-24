@@ -1,19 +1,19 @@
-# The Ultimate Workdesk v0.4.0
+# The Ultimate Workdesk v0.4.1
 
 A light, white-and-sky-blue workspace for organising everyday work.
 
-## Included in v0.4.0
-- Overview dashboard with task progress and upcoming tasks
-- Task manager with priority, due dates, completion and deletion
-- Daily planner with date and time
+## Included
+- Overview dashboard with task progress and due-date-sorted upcoming tasks
+- Task manager with priority, due dates, completion, filtering and deletion
+- Daily planner with date/time ordering
 - Local client records and notes
 - Manual lead tracker
 - Proposal draft builder with copy action
 - Manual opportunity tracker
 - Local persistence using `chrome.storage.local`
-- Refined layout, form labels, focus states and empty states
+- Save/load error feedback and safer handling of stored records
 
-## Not connected in this release
+## Known limitations
 Automatic lead collection from Maps or business directories, external opportunity monitoring, notifications, AI-powered proposal generation, AI trust scoring, cloud sync, accounts and multi-device access are not implemented. These require additional services, API access, backend infrastructure, permissions and security work. This release does not claim those integrations are active.
 
 ## Install in desktop Chrome
