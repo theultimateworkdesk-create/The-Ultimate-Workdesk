@@ -1,6 +1,6 @@
 # The Ultimate Workdesk v0.3.0
 
-White + sky-blue glass-style freelancer workspace prototype.
+White + sky-blue glass-style workspace prototype.
 
 ## Included
 - Dashboard and task progress
