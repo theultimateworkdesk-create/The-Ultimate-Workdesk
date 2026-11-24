@@ -1,24 +1,64 @@
-# The Ultimate Workdesk v0.3.0
+The Ultimate Workdesk v0.3.0
 
-White + sky-blue glass-style workspace prototype.
+Your All-in-One Work Management Workspace
 
-## Included
-- Dashboard and task progress
-- Task manager: priority, due date, completion, delete
-- Daily planner
-- Local client CRM
-- Manual lead tracker
-- Proposal draft template
-- Manual job opportunity tracker
-- Local persistence using chrome.storage.local
+The Ultimate Workdesk is a modern productivity workspace designed to help independent professionals organize daily tasks, manage clients, track business opportunities, and streamline their workflow.
 
-## Not connected yet
-Automatic Google Maps/Yelp/Yello lead collection, Reddit/LinkedIn/X monitoring, automated notifications, AI-powered proposal generation and AI trust scoring require external API/backend integrations. This prototype does not claim those integrations are active.
+Featuring a clean white and sky-blue glass-style interface.
 
-## Install (desktop Chrome)
-1. Extract this ZIP.
-2. Open chrome://extensions
-3. Enable Developer mode.
-4. Choose Load unpacked and select the extracted folder containing manifest.json.
+Features
 
-Chrome for Android does not directly support Chrome extensions.
+- Unified Dashboard
+- Task Manager
+- Daily Planner
+- Client CRM
+- Lead Tracker
+- Proposal Assistant
+- Job Opportunity Tracker
+- Local Data Storage
+
+Upcoming Features
+
+- Automated Lead Collection
+- Opportunity Monitoring
+- AI-Powered Proposal Generation
+- Automated Notifications
+- AI-Based Trust Scoring
+
+These integrations are planned for future versions and are not currently active.
+
+Installation
+
+1. Download the extension package.
+2. Extract the ZIP file.
+3. Open Google Chrome.
+4. Visit "chrome://extensions".
+5. Enable Developer Mode.
+6. Select Load unpacked.
+7. Choose the extracted extension folder.
+
+Compatibility
+
+Designed for desktop Google Chrome.
+
+Chrome for Android does not directly support extensions through its standard browser.
+
+Technology
+
+- HTML
+- CSS
+- JavaScript
+- Chrome Extensions Manifest V3
+- Chrome Storage API
+
+Project Status
+
+Version: 0.3.0
+
+Status: Development Prototype
+
+---
+
+The Ultimate Workdesk
+
+One Workspace. Better Organization. Smarter Productivity.
