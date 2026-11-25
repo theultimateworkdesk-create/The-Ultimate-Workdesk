@@ -1,4 +1,4 @@
-# The Ultimate Workdesk v0.4.2
+# The Ultimate Workdesk v0.4.3
 
 A light, white-and-sky-blue workspace for organising everyday work.
 
@@ -13,6 +13,7 @@ A light, white-and-sky-blue workspace for organising everyday work.
 - Local persistence using `chrome.storage.local`
 - Serialized save operations, rollback on storage failure, and clearer error feedback
 - Improved keyboard focus visibility and reduced-motion support
+- Safer queued task updates that look up records by ID when the queued action runs
 
 ## Known limitations
 Automatic lead collection from Maps or business directories, external opportunity monitoring, notifications, AI-powered proposal generation, AI trust scoring, cloud sync, accounts and multi-device access are not implemented. These require additional services, API access, backend infrastructure, permissions and security work. This release does not claim those integrations are active.

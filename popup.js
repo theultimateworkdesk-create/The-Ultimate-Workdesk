@@ -35,8 +35,8 @@ function updateStats() {
   $('progressBar').parentElement.setAttribute('aria-valuenow', String(percent));
 }
 
-// Serialize complete mutations (not just writes) to prevent overlapping UI actions
-// from restoring stale snapshots or overwriting newer records.
+// Queue the mutation itself and resolve records by ID only when it executes.
+// This prevents stale object references after an earlier failed mutation restores db.
 function commitMutation(mutator, successMessage = 'Saved on this device.') {
   const operation = mutationQueue.then(async () => {
     const previous = JSON.parse(JSON.stringify(db));
@@ -73,11 +73,7 @@ function render() {
   $('leadList').innerHTML = db.leads.map(lead => item(lead.name, [lead.source, lead.contact].filter(Boolean).join(' · '), lead.id, 'leads')).join('') || '<p class="empty">No leads saved yet.</p>';
   $('jobList').innerHTML = db.jobs.map(job => item(job.name, [job.source, job.url].filter(Boolean).join(' · '), job.id, 'jobs')).join('') || '<p class="empty">No opportunities saved yet.</p>';
 
-  const upcoming = db.tasks.filter(task => !task.done).sort((a, b) => {
-    const aKey = `${a.date || '9999-12-31'}T${a.time || '23:59'}`;
-    const bKey = `${b.date || '9999-12-31'}T${b.time || '23:59'}`;
-    return aKey.localeCompare(bKey) || String(a.name || '').localeCompare(String(b.name || ''));
-  }).slice(0, 4);
+  const upcoming = db.tasks.filter(task => !task.done).sort((a, b) => dateTimeKey(a).localeCompare(dateTimeKey(b)) || String(a.name || '').localeCompare(String(b.name || ''))).slice(0, 4);
   $('upcomingList').innerHTML = upcoming.map(task => `<div class="compact-item"><span>${esc(task.name)}</span><span>${esc(task.date || task.priority || 'Open')}</span></div>`).join('') || '<p class="empty">No open tasks. Enjoy the breathing room.</p>';
   updateStats();
 }
@@ -120,18 +116,21 @@ bindAdd('jobForm', 'jobs', () => ({ id: uid(), name: $('jobName').value.trim(), 
 
 document.addEventListener('change', async event => {
   if (!event.target.matches('[data-check]')) return;
-  const task = db.tasks.find(entry => entry.id === event.target.dataset.check);
-  if (!task) return;
+  const taskId = event.target.dataset.check;
   const nextValue = event.target.checked;
-  await commitMutation(() => { task.done = nextValue; });
+  await commitMutation(() => {
+    const task = db.tasks.find(entry => entry.id === taskId);
+    if (task) task.done = nextValue;
+  });
 });
 
 document.addEventListener('click', async event => {
   const del = event.target.closest('[data-del-type][data-del-id]');
   if (del) {
     const key = del.dataset.delType;
+    const id = del.dataset.delId;
     if (!COLLECTIONS.includes(key)) return;
-    await commitMutation(() => { db[key] = db[key].filter(entry => entry.id !== del.dataset.delId); }, 'Item deleted.');
+    await commitMutation(() => { db[key] = db[key].filter(entry => entry.id !== id); }, 'Item deleted.');
     return;
   }
   const go = event.target.closest('[data-go]');
