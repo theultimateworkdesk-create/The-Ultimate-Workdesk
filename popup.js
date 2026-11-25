@@ -7,6 +7,7 @@ const COLLECTIONS = ['tasks', 'plans', 'clients', 'leads', 'jobs'];
 let db = Object.fromEntries(COLLECTIONS.map(key => [key, []]));
 let statusTimer;
 let mutationQueue = Promise.resolve();
+let workspaceReadyPromise = Promise.resolve();
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const dateTimeKey = record => `${record.date || '9999-12-31'}T${record.time || '23:59'}`;
@@ -39,6 +40,7 @@ function updateStats() {
 // This prevents stale object references after an earlier failed mutation restores db.
 function commitMutation(mutator, successMessage = 'Saved on this device.') {
   const operation = mutationQueue.then(async () => {
+    await workspaceReadyPromise;
     const previous = JSON.parse(JSON.stringify(db));
     try {
       mutator();
@@ -198,4 +200,4 @@ async function loadWorkspace() {
   render();
 }
 
-loadWorkspace();
+workspaceReadyPromise = loadWorkspace();
