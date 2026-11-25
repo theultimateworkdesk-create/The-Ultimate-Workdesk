@@ -19,7 +19,7 @@
   <section id="home" class="view active">
     <div class="section-heading"><div><p class="eyebrow">OVERVIEW</p><h2>Today at a glance</h2></div><span id="todayLabel" class="date-pill"></span></div>
     <div class="stats"><article class="glass stat"><small>Open tasks</small><strong id="openCount">0</strong></article><article class="glass stat"><small>Completed</small><strong id="doneCount">0</strong></article><article class="glass stat"><small>Clients</small><strong id="clientCount">0</strong></article><article class="glass stat"><small>Saved leads</small><strong id="leadCount">0</strong></article></div>
-    <article class="glass panel"><div class="row"><b>Task completion</b><b id="progressText">0%</b></div><div class="track"><div id="progressBar"></div></div></article>
+    <article class="glass panel"><div class="row"><b>Task completion</b><b id="progressText">0%</b></div><div class="track" role="progressbar" aria-label="Task completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progressBar"></div></div></article>
     <article class="glass panel"><div class="row"><b>Upcoming tasks</b><button class="text-button" data-go="tasks">View all</button></div><div id="upcomingList" class="compact-list"><p class="empty">Your upcoming tasks will appear here.</p></div></article>
     <p class="privacy-note">Your workspace data is saved locally in this browser profile.</p>
   </section>
@@ -33,7 +33,7 @@
   <section id="proposals" class="view"><p class="eyebrow">WRITE WITH CLARITY</p><h2>Proposal Assistant</h2><p class="notice">Create a structured proposal draft from the details you provide. AI-powered analysis and generation are not connected yet.</p><div class="glass form"><label>Client name<input id="pClient" placeholder="Client name (optional)"></label><label>Service offered<input id="pService" placeholder="What service will you provide?" required></label><label>Client's need<textarea id="pNeed" placeholder="Describe the client's goal or challenge" rows="3" required></textarea></label><label>Relevant experience<textarea id="pProof" placeholder="Relevant experience or proof (optional)" rows="2"></textarea></label><button id="makeProposal" class="primary" type="button">Create proposal draft <span>✦</span></button></div><textarea id="proposalResult" class="result" rows="12" aria-label="Generated proposal" hidden></textarea><div class="row action-row"><button id="copyProposal" class="secondary" hidden>Copy draft</button><span id="copyStatus" class="status" aria-live="polite"></span></div></section>
   <section id="jobs" class="view"><p class="eyebrow">OPPORTUNITY ORGANISATION</p><h2>Job Radar</h2><p class="notice">Save opportunities and their source links here. Automatic Reddit, LinkedIn and X monitoring, notifications and trust scoring are not connected yet.</p><form id="jobForm" class="glass form"><label>Opportunity title<input id="jobName" placeholder="Role or project title" maxlength="160" required></label><label>Source<input id="jobSource" placeholder="Reddit, LinkedIn, website..."></label><label>Post URL<input id="jobUrl" type="url" placeholder="https://..."></label><button class="primary">Save opportunity <span>＋</span></button></form><div id="jobList" class="list"></div></section>
   <p id="appStatus" class="app-status" role="status" aria-live="polite" hidden></p>
-  <footer>THE ULTIMATE WORKDESK <span>·</span> v0.4.1</footer>
+  <footer>THE ULTIMATE WORKDESK <span>·</span> v0.4.2</footer>
 </main>
 <script src="popup.js"></script>
 </body>

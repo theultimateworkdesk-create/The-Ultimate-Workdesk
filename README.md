@@ -1,4 +1,4 @@
-# The Ultimate Workdesk v0.4.1
+# The Ultimate Workdesk v0.4.2
 
 A light, white-and-sky-blue workspace for organising everyday work.
 
@@ -8,10 +8,11 @@ A light, white-and-sky-blue workspace for organising everyday work.
 - Daily planner with date/time ordering
 - Local client records and notes
 - Manual lead tracker
-- Proposal draft builder with copy action
-- Manual opportunity tracker
+- Proposal draft builder with clipboard fallback
+- Manual opportunity tracker with HTTP/HTTPS URL validation
 - Local persistence using `chrome.storage.local`
-- Save/load error feedback and safer handling of stored records
+- Serialized save operations, rollback on storage failure, and clearer error feedback
+- Improved keyboard focus visibility and reduced-motion support
 
 ## Known limitations
 Automatic lead collection from Maps or business directories, external opportunity monitoring, notifications, AI-powered proposal generation, AI trust scoring, cloud sync, accounts and multi-device access are not implemented. These require additional services, API access, backend infrastructure, permissions and security work. This release does not claim those integrations are active.

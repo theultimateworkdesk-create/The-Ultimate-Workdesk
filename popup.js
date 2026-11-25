@@ -5,10 +5,12 @@ const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36
 const STORAGE_KEY = 'workdesk';
 const COLLECTIONS = ['tasks', 'plans', 'clients', 'leads', 'jobs'];
 let db = Object.fromEntries(COLLECTIONS.map(key => [key, []]));
-let saveTimer;
+let statusTimer;
+let mutationQueue = Promise.resolve();
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-const byDateTime = (a, b) => `${a.date || '9999-12-31'}T${a.time || '23:59'}`.localeCompare(`${b.date || '9999-12-31'}T${b.time || '23:59'}`);
+const dateTimeKey = record => `${record.date || '9999-12-31'}T${record.time || '23:59'}`;
+const byDateTime = (a, b) => dateTimeKey(a).localeCompare(dateTimeKey(b)) || String(a.name || '').localeCompare(String(b.name || ''));
 
 function announce(message, isError = false) {
   const status = $('appStatus');
@@ -16,21 +18,8 @@ function announce(message, isError = false) {
   status.textContent = message;
   status.classList.toggle('error', isError);
   status.hidden = !message;
-  clearTimeout(saveTimer);
-  if (message && !isError) saveTimer = setTimeout(() => { status.hidden = true; }, 3500);
-}
-
-async function save() {
-  try {
-    await chrome.storage.local.set({ [STORAGE_KEY]: db });
-    updateStats();
-    announce('Saved on this device.');
-    return true;
-  } catch (error) {
-    console.error('Workdesk save failed:', error);
-    announce('Could not save. Check extension storage and try again.', true);
-    return false;
-  }
+  clearTimeout(statusTimer);
+  if (message && !isError) statusTimer = setTimeout(() => { status.hidden = true; }, 3500);
 }
 
 function updateStats() {
@@ -43,12 +32,36 @@ function updateStats() {
   $('leadCount').textContent = String(db.leads.length);
   $('progressText').textContent = `${percent}%`;
   $('progressBar').style.width = `${percent}%`;
-  $('progressBar').setAttribute('aria-valuenow', String(percent));
+  $('progressBar').parentElement.setAttribute('aria-valuenow', String(percent));
+}
+
+// Serialize complete mutations (not just writes) to prevent overlapping UI actions
+// from restoring stale snapshots or overwriting newer records.
+function commitMutation(mutator, successMessage = 'Saved on this device.') {
+  const operation = mutationQueue.then(async () => {
+    const previous = JSON.parse(JSON.stringify(db));
+    try {
+      mutator();
+      const snapshot = JSON.parse(JSON.stringify(db));
+      await chrome.storage.local.set({ [STORAGE_KEY]: snapshot });
+      render();
+      announce(successMessage);
+      return true;
+    } catch (error) {
+      db = previous;
+      render();
+      console.error('Workdesk storage operation failed:', error);
+      announce('Could not save your change. Your previous data has been restored. Try again.', true);
+      return false;
+    }
+  });
+  mutationQueue = operation.catch(() => {});
+  return operation;
 }
 
 function item(title, detail, id, type, check = false, done = false) {
   const safeId = esc(id);
-  return `<article class="item ${done ? 'done' : ''}">${check ? `<input type="checkbox" data-check="${safeId}" aria-label="Mark ${esc(title)} complete" ${done ? 'checked' : ''}>` : ''}<div class="item-copy"><b>${esc(title)}</b><small>${esc(detail || '')}</small></div><button class="delete" data-del-type="${type}" data-del-id="${safeId}" aria-label="Delete ${esc(title)}">×</button></article>`;
+  return `<article class="item ${done ? 'done' : ''}">${check ? `<input type="checkbox" data-check="${safeId}" aria-label="Mark ${esc(title)} complete" ${done ? 'checked' : ''}>` : ''}<div class="item-copy"><b>${esc(title)}</b><small>${esc(detail || '')}</small></div><button type="button" class="delete" data-del-type="${type}" data-del-id="${safeId}" aria-label="Delete ${esc(title)}">×</button></article>`;
 }
 
 function render() {
@@ -61,26 +74,32 @@ function render() {
   $('jobList').innerHTML = db.jobs.map(job => item(job.name, [job.source, job.url].filter(Boolean).join(' · '), job.id, 'jobs')).join('') || '<p class="empty">No opportunities saved yet.</p>';
 
   const upcoming = db.tasks.filter(task => !task.done).sort((a, b) => {
-    const aDate = a.date || '9999-12-31';
-    const bDate = b.date || '9999-12-31';
-    return aDate.localeCompare(bDate) || String(a.name).localeCompare(String(b.name));
+    const aKey = `${a.date || '9999-12-31'}T${a.time || '23:59'}`;
+    const bKey = `${b.date || '9999-12-31'}T${b.time || '23:59'}`;
+    return aKey.localeCompare(bKey) || String(a.name || '').localeCompare(String(b.name || ''));
   }).slice(0, 4);
   $('upcomingList').innerHTML = upcoming.map(task => `<div class="compact-item"><span>${esc(task.name)}</span><span>${esc(task.date || task.priority || 'Open')}</span></div>`).join('') || '<p class="empty">No open tasks. Enjoy the breathing room.</p>';
   updateStats();
 }
 
-function bindAdd(formId, key, make) {
+function bindAdd(formId, key, make, validate = null) {
   $(formId).addEventListener('submit', async event => {
     event.preventDefault();
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
     const record = make();
-    if (!record.name) {
+    if (!record.name || !record.name.trim()) {
       announce('Please enter a name before saving.', true);
       return;
     }
-    db[key].unshift(record);
-    const saved = await save();
-    render();
-    if (saved) event.target.reset();
+    const validationError = validate?.(record);
+    if (validationError) {
+      announce(validationError.message, true);
+      validationError.field?.focus();
+      return;
+    }
+    const saved = await commitMutation(() => db[key].unshift(record));
+    if (saved) form.reset();
   });
 }
 
@@ -88,16 +107,23 @@ bindAdd('taskForm', 'tasks', () => ({ id: uid(), name: $('taskName').value.trim(
 bindAdd('planForm', 'plans', () => ({ id: uid(), name: $('planName').value.trim(), date: $('planDate').value, time: $('planTime').value }));
 bindAdd('clientForm', 'clients', () => ({ id: uid(), name: $('clientName').value.trim(), email: $('clientEmail').value.trim(), note: $('clientNote').value.trim() }));
 bindAdd('leadForm', 'leads', () => ({ id: uid(), name: $('leadName').value.trim(), source: $('leadSource').value.trim(), contact: $('leadContact').value.trim() }));
-bindAdd('jobForm', 'jobs', () => ({ id: uid(), name: $('jobName').value.trim(), source: $('jobSource').value.trim(), url: $('jobUrl').value.trim() }));
+bindAdd('jobForm', 'jobs', () => ({ id: uid(), name: $('jobName').value.trim(), source: $('jobSource').value.trim(), url: $('jobUrl').value.trim() }), record => {
+  if (!record.url) return null;
+  try {
+    const parsed = new URL(record.url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Unsupported protocol');
+    return null;
+  } catch {
+    return { message: 'Enter a valid http or https opportunity URL.', field: $('jobUrl') };
+  }
+});
 
 document.addEventListener('change', async event => {
   if (!event.target.matches('[data-check]')) return;
   const task = db.tasks.find(entry => entry.id === event.target.dataset.check);
   if (!task) return;
-  const previous = task.done;
-  task.done = event.target.checked;
-  if (!await save()) task.done = previous;
-  render();
+  const nextValue = event.target.checked;
+  await commitMutation(() => { task.done = nextValue; });
 });
 
 document.addEventListener('click', async event => {
@@ -105,10 +131,7 @@ document.addEventListener('click', async event => {
   if (del) {
     const key = del.dataset.delType;
     if (!COLLECTIONS.includes(key)) return;
-    const oldRecords = db[key];
-    db[key] = oldRecords.filter(entry => entry.id !== del.dataset.delId);
-    if (!await save()) db[key] = oldRecords;
-    render();
+    await commitMutation(() => { db[key] = db[key].filter(entry => entry.id !== del.dataset.delId); }, 'Item deleted.');
     return;
   }
   const go = event.target.closest('[data-go]');
@@ -145,21 +168,26 @@ $('makeProposal').addEventListener('click', () => {
 $('copyProposal').addEventListener('click', async () => {
   const field = $('proposalResult');
   try {
-    await navigator.clipboard.writeText(field.value);
-    $('copyStatus').textContent = 'Copied.';
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(field.value);
+      $('copyStatus').textContent = 'Copied.';
+      return;
+    }
+    throw new Error('Clipboard API unavailable');
   } catch (error) {
     field.focus();
     field.select();
-    $('copyStatus').textContent = 'Draft selected. Copy it using your device menu.';
+    $('copyStatus').textContent = 'Draft selected. Use your device menu to copy.';
   }
 });
 
 async function loadWorkspace() {
   try {
     const stored = await chrome.storage.local.get(STORAGE_KEY);
-    if (stored && stored[STORAGE_KEY] && typeof stored[STORAGE_KEY] === 'object') {
+    const workspace = stored?.[STORAGE_KEY];
+    if (workspace && typeof workspace === 'object') {
       for (const key of COLLECTIONS) {
-        const value = stored[STORAGE_KEY][key];
+        const value = workspace[key];
         db[key] = Array.isArray(value) ? value.filter(record => record && typeof record === 'object' && record.id && typeof record.name === 'string') : [];
       }
     }
